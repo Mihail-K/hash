@@ -1,4 +1,4 @@
-# hash
+# hash [![DUB](https://img.shields.io/dub/l/vibe-d.svg?maxAge=2592000)]()
 A Hash datatype for key => value pairs.
 
 ## What is a Hash?
