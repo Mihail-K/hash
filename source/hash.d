@@ -108,6 +108,14 @@ struct Hash(args...)
     }
 
     /++
+     + Concatenates two hashes. Duplicate keys and values are preserved.
+     +/
+    static auto concat(other...)(Hash!other)
+    {
+        return Hash!(args, other).init;
+    }
+
+    /++
      + Tests for an empty hash.
      +/
     @property
@@ -211,6 +219,14 @@ struct Hash(args...)
         }
 
         return 0;
+    }
+
+    /++
+     + Concatenates two hashes. Duplicate keys and values are preserved.
+     +/
+    static auto opBinary(string op : "~", other...)(Hash!other o)
+    {
+        return concat(o);
     }
 
     /++
@@ -498,4 +514,14 @@ unittest
     assert(test.x == 2);
     assert(test.y == 3);
     assert(test.z == 4);
+}
+
+unittest
+{
+    auto a = hash!(a => 1, b => 2);
+    auto b = hash!(b => 3, c => 4);
+    auto c = a ~ b;
+
+    assert(c.length == 4);
+    assert(c.values!int == [ 1, 2, 3, 4 ]);
 }
