@@ -1,4 +1,6 @@
 
+module hash;
+
 import std.algorithm;
 import std.conv;
 import std.stdio;
