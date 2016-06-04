@@ -5,17 +5,74 @@ import std.stdio;
 import std.traits;
 import std.variant;
 
+/++
+ + Tests if the given type is a hash.
+ +/
 enum isHash(Type : Hash!args, args...) = true;
+/++
+ + Ditto.
+ +/
 enum isHash(Type) = false;
 
+/++
+ + A templated datatype which stores key => value pairs.
+ + Keys and values stored in hash need not be unique.
+ +
+ + Querying hashes can be done with both compile-time and run-time values.
+ + ---
+ + Hash!(a => 1) hash;
+ +
+ + assert(hash["a"] == Variant(1));
+ + assert(hash.value!"a" == 1);
+ + ---
+ +
+ + Hashes also allow for duplicate keys, and value selection by type.
+ + ---
+ + int xInt;
+ + string xString;
+ + Hash!(x => 5, x => "10") hash;
+ +
+ + hash.get("x", xInt);    // Or xInt    = hash.value!("x", int);
+ + hash.get("x", xString); // Or xString = hash.value!("x", string);
+ +
+ + assert(xInt == 5);
+ + assert(xString == "10");
+ + ---
+ +/
 struct Hash(args...)
 {
+    // Internal use only.
     private static struct HashType
     {
         // Nothing.
     }
 
-    static T apply(T)(auto ref T dest)
+    /++
+     + Applies the hash onto a value which is a class or struct given by `T`.
+     +
+     + Fields in the destination value are assigned for which there exists
+     + an element with a matching key and type.
+     +
+     + For example,
+     + ---
+     + struct User
+     + {
+     +     string name;
+     +     int age;
+     +     bool admin;
+     +     bool active;
+     + }
+     +
+     + User user;
+     + Hash!(name => "Jesse", age => 24, active => "yes").apply(user);
+     +
+     + assert(user.name == "Jesse"); // name => "Jesse"
+     + assert(user.age  == 24);      // age  => 24
+     + assert(user.admin == false);  // Unchanged (no key)
+     + assert(user.active == false); // Unchanged (type mismatch)
+     + ---
+     +/
+    static T apply(T)(auto ref T dest) if(is(T == class) || is(T == struct))
     {
         foreach(member; __traits(allMembers, T))
         {
@@ -29,10 +86,17 @@ struct Hash(args...)
         return dest;
     }
 
+    /++
+     + Tests for an empty hash.
+     +/
     @property
     enum bool empty = args.length == 0;
 
-    static bool get(T)(string name, auto ref T dest)
+    /++
+     + Fetches an element by its runtime name and stores it into the
+     + destination parameter.
+     +/
+    static bool get(T)(string name, out T dest)
     {
         foreach(arg; args)
         {
@@ -61,13 +125,22 @@ struct Hash(args...)
         return false;
     }
 
+    /++
+     + Checks for the presence of a key in the hash.
+     +/
     static bool hasKey()(string name)
     {
         return keys.countUntil(name) != -1;
     }
 
+    /++
+     + Ditto, but accepts a template parameter.
+     +/
     enum bool hasKey(string name) = hasKey(name);
 
+    /++
+     + Unique set of key names in the hash. The order of keys is unspecified.
+     +/
     @property
     enum string[] keys = _keys;
 
@@ -99,6 +172,9 @@ struct Hash(args...)
         return keySet.keys;
     }
 
+    /++
+     + Returns the number of values in the hash.
+     +/
     @property
     enum size_t length = args.length;
 
@@ -147,6 +223,9 @@ struct Hash(args...)
         return 0;
     }
 
+    /++
+     + Fetches a value from the hash as a Variant.
+     +/
     static Variant opIndex(string name)
     {
         Variant value;
@@ -154,9 +233,25 @@ struct Hash(args...)
         return value;
     }
 
+    /++
+     + Returns a value from the hash by name.
+     +
+     + If the type parameter `T` is given, the value returned must match `T`.
+     + If no values with with matching a matching key and type exist within the
+     + hash, `T.init` is returned instead.
+     +
+     + Params:
+     +   name = The name of the key to search for.
+     +   T    = An optional type constraint.
+     +/
     @property
     static auto value(string name, T...)() if(hasKey(name) && T.length < 2)
     {
+        static if(T.length == 1)
+        {
+            T[0] result = T[0].init;
+        }
+
         foreach(arg; args)
         {
             alias key = arg!HashType;
@@ -164,16 +259,27 @@ struct Hash(args...)
             {
                 static if(name == __traits(identifier, Types))
                 {
-                    static if(T.length == 0 || (T.length == 1 &&
-                             isAssignable!(T, typeof(key(HashType.init)))))
+                    static if(T.length == 0)
                     {
                         return key(HashType.init);
+                    }
+                    else static if(isAssignable!(T, typeof(key(HashType.init))))
+                    {
+                        result = key(HashType.init);
                     }
                 }
             }
         }
+
+        static if(T.length == 1)
+        {
+            return result;
+        }
     }
 
+    /++
+     + Returns all values in the hash converted to a type given by `T`.
+     +/
     @property
     static T[] values(T = Variant)()
     {
@@ -189,6 +295,9 @@ struct Hash(args...)
     }
 }
 
+/++
+ + Shortcut for `Hash!(args).init`
+ +/
 auto hash(args...)()
 {
     return Hash!(args).init;
