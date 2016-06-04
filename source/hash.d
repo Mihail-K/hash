@@ -44,9 +44,28 @@ enum isHash(Type) = false;
 struct Hash(args...)
 {
     // Internal use only.
-    private static struct HashType
+    private struct HashType
     {
         // Nothing.
+    }
+
+    // Internal use only.
+    private enum _valid = _isValidArgs;
+    private static bool _isValidArgs()
+    {
+        enum invalidHashKey = "Type `%s` in Hash[index => %d] is not a valid key.";
+
+        foreach(index, arg; args)
+        {
+            static if(!is(typeof(arg!HashType)))
+            {
+                import std.string : format;
+                static assert(false, invalidHashKey.format(typeof(arg).stringof, index + 1));
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /++
@@ -150,24 +169,16 @@ struct Hash(args...)
     {
         bool[string] keySet;
 
-        foreach(index, arg; args)
+        foreach(arg; args)
         {
-            static if(is(typeof(arg!HashType)))
+            alias key = arg!HashType;
+            static if(is(FunctionTypeOf!key Types == __parameters))
             {
-                alias key = arg!HashType;
-                static if(is(FunctionTypeOf!key Types == __parameters))
+                enum name = __traits(identifier, Types);
+                if(name !in keySet)
                 {
-                    enum name = __traits(identifier, Types);
-                    if(name !in keySet)
-                    {
-                        keySet[name] = true;
-                    }
+                    keySet[name] = true;
                 }
-            }
-            else
-            {
-                static assert(0, "Type `" ~ typeof(arg).stringof ~ "` at Hash[index => " ~
-                                 text(index + 1) ~ "] is not a valid Hash key.");
             }
         }
 
@@ -314,6 +325,18 @@ unittest
     assert( isHash!(Hash!()));
     assert( isHash!(Hash!(a => 1, a => 2, a => 3)));
     assert(!isHash!(Object));
+}
+
+unittest
+{
+    assert(!__traits(compiles, {
+        Hash!(
+            a => 1,
+            b => 2,
+            c => 3,
+            false
+        ) hash;
+    }));
 }
 
 unittest
