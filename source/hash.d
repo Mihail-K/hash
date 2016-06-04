@@ -325,6 +325,21 @@ struct Hash(args...)
 }
 
 /++
+ + Automatically initializes static fields from Hash-style parameters.
+ + Only valid in structs and classes.
+ +/
+mixin template Hashify(args...)
+{
+    static this()
+    {
+        enum aggregate = is(typeof(this) == class) || is(typeof(this) == struct);
+        static assert(aggregate, "Can only hashify struct or class.");
+
+        Hash!(args).apply(typeof(this).init);
+    }
+}
+
+/++
  + Shortcut for `Hash!(args).init`
  +/
 auto hash(args...)()
@@ -431,16 +446,13 @@ unittest
 {
     static struct Test(args...)
     {
+        mixin Hashify!args;
+
         static
         {
             int a;
             int b;
             int c;
-        }
-
-        static this()
-        {
-            Hash!args.apply(typeof(this).init);
         }
     }
 
@@ -459,17 +471,14 @@ unittest
 {
     static struct Column(args...)
     {
+        mixin Hashify!args;
+
         static
         {
             string name;
             string type;
             bool nullable;
             string defaultValue;
-        }
-
-        static this()
-        {
-            Hash!args.apply(typeof(this).init);
         }
     }
 
