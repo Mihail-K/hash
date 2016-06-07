@@ -330,12 +330,12 @@ struct Hash(args...)
  +/
 mixin template Hashify(args...)
 {
-    static this()
-    {
-        enum aggregate = is(typeof(this) == class) || is(typeof(this) == struct);
-        static assert(aggregate, "Can only hashify struct or class.");
+    @property
+    enum hashof = Hash!args.init;
 
-        Hash!(args).apply(typeof(this).init);
+    static auto opDispatch(string op)() if(hashof.hasKey(op))
+    {
+        return hashof.value!op;
     }
 }
 
@@ -448,12 +448,9 @@ unittest
     {
         mixin Hashify!args;
 
-        static
-        {
-            int a;
-            int b;
-            int c;
-        }
+        int a = hashof.value!"a";
+        int b = hashof.value!"b";
+        int c = hashof.value!"c";
     }
 
     Test!(
@@ -473,13 +470,8 @@ unittest
     {
         mixin Hashify!args;
 
-        static
-        {
-            string name;
-            string type;
-            bool nullable;
-            string defaultValue;
-        }
+        string name   = hashof.value!("name", string);
+        bool nullable = hashof.value!("nullable", bool);
     }
 
     class User
