@@ -4,6 +4,8 @@ A Hash datatype for key => value pairs.
 ## What is a Hash?
 Hashes serve as key-value pairs for arbitrary value types. Unlike associative arrays, Hashes are immutable, and values in a Hash need not all be the same type. For example, a Hash can store both `int` and `string` values at the same time,
 ```d
+import hashes : hash;
+
 auto ex = hash!( foo => 1, bar => "2" );
 ```
 

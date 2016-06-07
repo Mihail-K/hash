@@ -1,5 +1,5 @@
 
-module hash;
+module hashes;
 
 import std.algorithm;
 import std.conv;
